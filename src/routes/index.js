@@ -12,3 +12,5 @@ app.get('/', (req, res) => {
 app.listen(process.env.PORT, () => {
   console.log('서버 실행 중: http://localhost:' + process.env.PORT)
 })
+
+app.use('/api/users', authRouter)
