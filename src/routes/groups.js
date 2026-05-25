@@ -21,25 +21,7 @@ router.post('/', authMiddleware, async (req, res) => {
     .from('group_members')
     .insert({ group_plan_id: data.group_plan_id, user_id: owner_id })
 
-  res.status(201).json({
-    group_plan_id: data.group_plan_id,
-    message: '약속 방이 생성되었습니다.'
-  })
-})
-
-// POST /api/groups/:id/availability
-router.post('/:id/availability', authMiddleware, async (req, res) => {
-  const group_plan_id = req.params.id
-  const user_id = req.user.id
-  const { start_time, end_time, is_available } = req.body
-
-  const { error } = await supabase
-    .from('availability')
-    .insert({ group_plan_id, user_id, start_time, end_time, is_available })
-
-  if (error) return res.status(400).json({ message: error.message })
-
-  res.status(201).json({ message: '가능 시간이 등록되었습니다.' })
+  res.status(201).json({ group_plan_id: data.group_plan_id, message: '약속 방이 생성되었습니다.' })
 })
 
 // POST /api/groups/:id/join
@@ -70,6 +52,20 @@ router.get('/:id/members', authMiddleware, async (req, res) => {
   res.json(data)
 })
 
+// POST /api/groups/:id/availability
+router.post('/:id/availability', authMiddleware, async (req, res) => {
+  const group_plan_id = req.params.id
+  const { schedule_id, is_available } = req.body
+
+  const { error } = await supabase
+    .from('availability')
+    .insert({ group_plan_id, schedule_id, is_available })
+
+  if (error) return res.status(400).json({ message: error.message })
+
+  res.status(201).json({ message: '가능 시간이 등록되었습니다.' })
+})
+
 // GET /api/groups/:id/recommend
 router.get('/:id/recommend', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
@@ -85,7 +81,7 @@ router.get('/:id/recommend', authMiddleware, async (req, res) => {
 
   const { data: slots, error: slotError } = await supabase
     .from('availability')
-    .select('start_time, end_time, user_id')
+    .select('schedule_id, is_available, user_schedules(start_time, end_time, title)')
     .eq('group_plan_id', group_plan_id)
     .eq('is_available', true)
 
@@ -94,9 +90,13 @@ router.get('/:id/recommend', authMiddleware, async (req, res) => {
   const timeMap = {}
 
   slots.forEach(slot => {
-    const key = `${slot.start_time}_${slot.end_time}`
+    const key = slot.user_schedules.start_time + '_' + slot.user_schedules.end_time
     if (!timeMap[key]) {
-      timeMap[key] = { start_time: slot.start_time, end_time: slot.end_time, count: 0 }
+      timeMap[key] = {
+        start_time: slot.user_schedules.start_time,
+        end_time: slot.user_schedules.end_time,
+        count: 0
+      }
     }
     timeMap[key].count += 1
   })
@@ -112,7 +112,7 @@ router.get('/:id/recommend', authMiddleware, async (req, res) => {
 router.post('/:id/confirm', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
   const user_id = req.user.id
-  const { start_time, end_time, location } = req.body
+  const { start_time, end_time } = req.body
 
   const { data: plan, error: planError } = await supabase
     .from('group_plans')
@@ -128,7 +128,7 @@ router.post('/:id/confirm', authMiddleware, async (req, res) => {
 
   const { error: meetingError } = await supabase
     .from('meetings')
-    .insert({ group_plan_id, start_time, end_time, location })
+    .insert({ group_plan_id, start_time, end_time })
 
   if (meetingError) return res.status(400).json({ message: meetingError.message })
 
