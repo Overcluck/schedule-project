@@ -165,4 +165,34 @@ router.post('/:id/confirm', authMiddleware, async (req, res) => {
   res.json({ message: '약속이 확정되었습니다.' })
 })
 
+// GET /api/groups/:id
+router.get('/:id', authMiddleware, async (req, res) => {
+  const group_plan_id = req.params.id
+
+  const { data, error } = await supabase
+    .from('group_plans')
+    .select('*, users!group_plans_owner_id_fkey(nickname, email)')
+    .eq('group_plan_id', group_plan_id)
+    .single()
+
+  if (error) return res.status(400).json({ message: error.message })
+
+  res.json(data)
+})
+
+// GET /api/groups/:id/confirm
+router.get('/:id/confirm', authMiddleware, async (req, res) => {
+  const group_plan_id = req.params.id
+
+  const { data, error } = await supabase
+    .from('meetings')
+    .select('*')
+    .eq('group_plan_id', group_plan_id)
+    .single()
+
+  if (error) return res.status(400).json({ message: error.message })
+
+  res.json(data)
+})
+
 export default router

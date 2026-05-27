@@ -3,7 +3,9 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const app = express()
+import cors from 'cors'
 app.use(express.json())
+app.use(cors())
 
 app.get('/', (req, res) => {
   res.send('서버 정상 동작')
