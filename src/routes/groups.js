@@ -27,16 +27,41 @@ router.post('/', authMiddleware, async (req, res) => {
 // POST /api/groups/:id/join
 router.post('/:id/join', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
-  const user_id = req.user.id
+  const owner_id = req.user.id
+  const { email } = req.body
+
+  const { data: plan, error: planError } = await supabase
+    .from('group_plans')
+    .select('owner_id')
+    .eq('group_plan_id', group_plan_id)
+    .single()
+
+  if (planError) return res.status(400).json({ message: planError.message })
+
+  if (plan.owner_id !== owner_id) {
+    return res.status(403).json({ message: '방장만 멤버를 초대할 수 있습니다.' })
+  }
+
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('user_id')
+    .eq('email', email)
+    .single()
+
+  if (userError || !user) return res.status(404).json({ message: '해당 이메일의 유저를 찾을 수 없습니다.' })
 
   const { error } = await supabase
     .from('group_members')
-    .insert({ group_plan_id, user_id })
+    .insert({ group_plan_id, user_id: user.user_id })
+  if (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ message: '이미 참여 중인 멤버입니다.' })
+    }
+    return res.status(400).json({ message: error.message })
+  }
 
-  if (error) return res.status(400).json({ message: error.message })
-
-  res.status(201).json({ message: '약속 방에 참여했습니다.' })
-})
+  res.status(201).json({ message: '멤버가 초대되었습니다.' })
+  })
 
 // GET /api/groups/:id/members
 router.get('/:id/members', authMiddleware, async (req, res) => {
