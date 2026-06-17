@@ -42,6 +42,7 @@ app.get('/', (req, res) => {
 
 // 라우터 등록
 app.use('/api/users', authRouter)
+app.use('/api/auth', authRouter)
 
 // 에러 로그
 app.use((err, req, res, next) => {
