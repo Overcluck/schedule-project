@@ -9,8 +9,11 @@ dotenv.config()
 const app = express()
 
 const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
   'http://localhost:8080',
-  'http://127.0.0.1:8080'
+  'http://127.0.0.1:8080',
+  'https://schedule-project-d3es.onrender.com'
 ]
 
 const corsOptions = {
