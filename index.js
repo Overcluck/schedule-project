@@ -1,7 +1,6 @@
 import express from 'express'
 import dotenv from 'dotenv'
 import cors from 'cors'
-
 import authRouter from './src/routes/auth.js'
 import groupRouter from './src/routes/groups.js'
 import scheduleRouter from './src/routes/schedules.js'
@@ -48,7 +47,6 @@ app.use((err, req, res, next) => {
 })
 
 const PORT = process.env.PORT || 5000
-
 app.listen(PORT, () => {
   console.log(`서버 실행 중: ${PORT}`)
 })

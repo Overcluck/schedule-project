@@ -1,26 +1,37 @@
 import express from 'express'
 import supabase from '../supabase.js'
+import authMiddleware from '../middleware/auth.js'
 
 const router = express.Router()
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
   const { email, password, nickname } = req.body
-
   const { data, error } = await supabase.auth.signUp({ email, password })
-
   if (error) return res.status(400).json({ message: error.message })
-
   await supabase.from('users').insert({
     user_id: data.user.id,
     email,
     nickname
   })
-
   res.status(201).json({ message: '회원가입이 완료되었습니다.' })
 })
 
-import authMiddleware from '../middleware/auth.js'
+// POST /api/auth/login
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) return res.status(400).json({ message: error.message })
+  const { data: userData } = await supabase
+    .from('users')
+    .select('nickname')
+    .eq('user_id', data.user.id)
+    .single()
+  res.json({
+    token: data.session.access_token,
+    nickname: userData.nickname
+  })
+})
 
 // GET /api/users/me
 router.get('/me', authMiddleware, async (req, res) => {
@@ -29,30 +40,19 @@ router.get('/me', authMiddleware, async (req, res) => {
     .select('user_id, email, nickname, created_at')
     .eq('user_id', req.user.id)
     .single()
-
   if (error) return res.status(400).json({ message: error.message })
-
   res.json(data)
 })
 
-export default router
-
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-
-  if (error) return res.status(400).json({ message: error.message })
-
-  const { data: userData } = await supabase
+// PATCH /api/users/me
+router.patch('/me', authMiddleware, async (req, res) => {
+  const { nickname } = req.body
+  const { error } = await supabase
     .from('users')
-    .select('nickname')
-    .eq('user_id', data.user.id)
-    .single()
-
-  res.json({
-    token: data.session.access_token,
-    nickname: userData.nickname
-  })
+    .update({ nickname })
+    .eq('user_id', req.user.id)
+  if (error) return res.status(400).json({ message: error.message })
+  res.json({ message: '닉네임이 변경되었습니다.' })
 })
+
+export default router
