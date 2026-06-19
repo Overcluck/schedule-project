@@ -55,4 +55,16 @@ router.patch('/me', authMiddleware, async (req, res) => {
   res.json({ message: '닉네임이 변경되었습니다.' })
 })
 
+// PATCH /api/users/password
+router.patch('/password', authMiddleware, async (req, res) => {
+  const { password } = req.body
+  if (!password || password.length < 6) {
+    return res.status(400).json({ message: '비밀번호는 6자 이상이어야 합니다.' })
+  }
+  const { error } = await supabase.auth.admin.updateUserById(req.user.id, { password })
+  if (error) return res.status(400).json({ message: error.message })
+  res.json({ message: '비밀번호가 변경되었습니다.' })
+})
+
 export default router
+
