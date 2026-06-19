@@ -210,4 +210,31 @@ router.get('/:id/confirm', authMiddleware, async (req, res) => {
   res.json(data)
 })
 
+// DELETE /api/groups/:id
+router.delete('/:id', authMiddleware, async (req, res) => {
+  const group_plan_id = req.params.id
+  const user_id = req.user.id
+
+  const { data: plan, error: findError } = await supabase
+    .from('group_plans')
+    .select('owner_id')
+    .eq('group_plan_id', group_plan_id)
+    .single()
+
+  if (findError) return res.status(404).json({ message: '해당 약속 방을 찾을 수 없습니다.' })
+
+  if (plan.owner_id !== user_id) {
+    return res.status(403).json({ message: '방장만 약속 방을 삭제할 수 있습니다.' })
+  }
+
+  const { error } = await supabase
+    .from('group_plans')
+    .delete()
+    .eq('group_plan_id', group_plan_id)
+
+  if (error) return res.status(400).json({ message: error.message })
+
+  res.json({ message: '약속 방이 삭제되었습니다.' })
+})
+
 export default router
