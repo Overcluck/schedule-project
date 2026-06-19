@@ -24,6 +24,21 @@ router.post('/', authMiddleware, async (req, res) => {
   res.status(201).json({ group_plan_id: data.group_plan_id, message: '약속 방이 생성되었습니다.' })
 })
 
+// GET /api/groups (내가 참여 중인 약속 방 목록)
+router.get('/', authMiddleware, async (req, res) => {
+  const user_id = req.user.id
+
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('group_plans(group_plan_id, title, description, status, deadline, owner_id)')
+    .eq('user_id', user_id)
+
+  if (error) return res.status(400).json({ message: error.message })
+
+  const groups = data.map(d => d.group_plans)
+  res.json(groups)
+})
+
 // POST /api/groups/:id/join
 router.post('/:id/join', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
