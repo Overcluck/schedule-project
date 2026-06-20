@@ -4,6 +4,23 @@ import authMiddleware from '../middleware/auth.js'
 
 const router = express.Router()
 
+// 요청한 사용자가 해당 그룹의 멤버인지 확인합니다.
+// members/recommend/confirm 조회, availability 등록은 그룹 멤버만 할 수 있어야 합니다.
+// (멤버가 아닌 사용자가 group_plan_id만 알면 다른 그룹 정보를 보거나
+//  추천 결과를 오염시킬 수 있는 문제를 막기 위함)
+async function requireMembership(group_plan_id, user_id) {
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('user_id')
+    .eq('group_plan_id', group_plan_id)
+    .eq('user_id', user_id)
+    .maybeSingle()
+
+  if (error) return { ok: false, status: 400, message: error.message }
+  if (!data) return { ok: false, status: 403, message: '해당 약속 방의 멤버가 아닙니다.' }
+  return { ok: true }
+}
+
 // POST /api/groups
 router.post('/', authMiddleware, async (req, res) => {
   const { title, description, deadline } = req.body
@@ -82,6 +99,9 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
 router.get('/:id/members', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
 
+  const membership = await requireMembership(group_plan_id, req.user.id)
+  if (!membership.ok) return res.status(membership.status).json({ message: membership.message })
+
   const { data, error } = await supabase
     .from('group_members')
     .select('user_id, joined_at, users(nickname, email)')
@@ -97,6 +117,9 @@ router.post('/:id/availability', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
   const { schedule_id, is_available } = req.body
 
+  const membership = await requireMembership(group_plan_id, req.user.id)
+  if (!membership.ok) return res.status(membership.status).json({ message: membership.message })
+
   const { error } = await supabase
     .from('availability')
     .insert({ group_plan_id, schedule_id, is_available })
@@ -109,6 +132,9 @@ router.post('/:id/availability', authMiddleware, async (req, res) => {
 // GET /api/groups/:id/recommend
 router.get('/:id/recommend', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
+
+  const membership = await requireMembership(group_plan_id, req.user.id)
+  if (!membership.ok) return res.status(membership.status).json({ message: membership.message })
 
   const { data: members, error: memberError } = await supabase
     .from('group_members')
@@ -184,6 +210,9 @@ router.post('/:id/confirm', authMiddleware, async (req, res) => {
 router.get('/:id', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
 
+  const membership = await requireMembership(group_plan_id, req.user.id)
+  if (!membership.ok) return res.status(membership.status).json({ message: membership.message })
+
   const { data, error } = await supabase
     .from('group_plans')
     .select('*, users!group_plans_owner_id_fkey(nickname, email)')
@@ -198,6 +227,9 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // GET /api/groups/:id/confirm
 router.get('/:id/confirm', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
+
+  const membership = await requireMembership(group_plan_id, req.user.id)
+  if (!membership.ok) return res.status(membership.status).json({ message: membership.message })
 
   const { data, error } = await supabase
     .from('meetings')
@@ -237,15 +269,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   res.json({ message: '약속 방이 삭제되었습니다.' })
 })
 
-// PATCH /api/users/password
-router.patch('/password', authMiddleware, async (req, res) => {
-  const { password } = req.body
-  if (!password || password.length < 6) {
-    return res.status(400).json({ message: '비밀번호는 6자 이상이어야 합니다.' })
-  }
-  const { error } = await supabase.auth.admin.updateUserById(req.user.id, { password })
-  if (error) return res.status(400).json({ message: error.message })
-  res.json({ message: '비밀번호가 변경되었습니다.' })
-})
+// PATCH /api/users/password 는 auth.js 에 이미 구현되어 있습니다.
+// 여기 있던 중복 라우트(이 라우터에 마운트되면 /api/groups/password가 되어 혼선을 줌)는 제거했습니다.
 
 export default router
