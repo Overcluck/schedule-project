@@ -116,9 +116,34 @@ router.get('/:id/members', authMiddleware, async (req, res) => {
 router.post('/:id/availability', authMiddleware, async (req, res) => {
   const group_plan_id = req.params.id
   const { schedule_id, is_available } = req.body
+  const user_id = req.user.id
 
-  const membership = await requireMembership(group_plan_id, req.user.id)
+  const membership = await requireMembership(group_plan_id, user_id)
   if (!membership.ok) return res.status(membership.status).json({ message: membership.message })
+
+  // 본인 소유 일정인지 확인 (다른 사람 schedule_id 도용 방지)
+  const { data: schedule, error: schedErr } = await supabase
+    .from('user_schedules')
+    .select('user_id')
+    .eq('schedule_id', schedule_id)
+    .single()
+
+  if (schedErr || !schedule) return res.status(404).json({ message: '해당 일정을 찾을 수 없습니다.' })
+  if (schedule.user_id !== user_id) {
+    return res.status(403).json({ message: '본인의 일정만 가용 시간으로 등록할 수 있습니다.' })
+  }
+
+  // 중복 등록 방지 (같은 일정을 두 번 등록하면 추천 count가 부풀려짐)
+  const { data: existing } = await supabase
+    .from('availability')
+    .select('group_plan_id')
+    .eq('group_plan_id', group_plan_id)
+    .eq('schedule_id', schedule_id)
+    .maybeSingle()
+
+  if (existing) {
+    return res.json({ message: '이미 등록된 가능 시간입니다.' })
+  }
 
   const { error } = await supabase
     .from('availability')
