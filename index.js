@@ -14,7 +14,9 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:8080',
   'http://127.0.0.1:8080',
-  'https://schedule-project-d3es.onrender.com'
+  'https://schedule-project-d3es.onrender.com',
+  'https://goat-jet.vercel.app',
+  'https://goat-mry3p14v7-alstjr26-8465s-projects.vercel.app'
 ]
 
 const corsOptions = {
